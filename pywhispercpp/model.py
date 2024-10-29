@@ -68,6 +68,8 @@ class Model:
                  models_dir: str = None,
                  params_sampling_strategy: int = 0,
                  log_level: int = logging.INFO,
+                 diarize: bool = False,
+                 tinydiarize: bool = False,
                  **params):
         """
         :param model: The name of the model, one of the [AVAILABLE_MODELS](/pywhispercpp/#pywhispercpp.constants.AVAILABLE_MODELS),
@@ -76,11 +78,15 @@ class Model:
                             exist, default to [MODELS_DIR](/pywhispercpp/#pywhispercpp.constants.MODELS_DIR) <user_data_dir/pywhsipercpp/models>
         :param params_sampling_strategy: 0 -> GREEDY, else BEAM_SEARCH
         :param log_level: logging level, set to INFO by default
+        :param diarize: If True, enables diarization on stereo files
+        :param tinydiarize: If True, enables tinydiarize (if supported by the model)
         :param params: keyword arguments for different whisper.cpp parameters,
                         see [PARAMS_SCHEMA](/pywhispercpp/#pywhispercpp.constants.PARAMS_SCHEMA)
         """
         # set logging level
         set_log_level(log_level)
+        self.diarize = diarize
+        self.tinydiarize = tinydiarize
 
         if Path(model).is_file():
             self.model_path = model
@@ -232,6 +238,17 @@ class Model:
         """
         for param in kwargs:
             setattr(self._params, param, kwargs[param])
+
+        try:
+            if self.diarize:
+                logging.info("Enabling diarization...")
+                pw.whisper_enable_diarization(self._params)
+            if self.tinydiarize:
+                logging.info("Enabling tiny diarization...")
+                pw.whisper_enable_tinydiarization(self._params)
+        except AttributeError:
+            logging.warning("Diarization options are not supported in this version of whisper.cpp")
+
 
     def _transcribe(self, audio: np.ndarray, n_processors: int = None):
         """
